@@ -1,6 +1,6 @@
 啟動伺服器：
 在終端機（Terminal）或命令提示字元中執行：
->python app_v1.py
+>python app_v3_fixed.py
 
 開啟網頁操作：
 打開瀏覽器前往：http://localhost:8888
