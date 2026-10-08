@@ -1,6 +1,135 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>會務財產推估模擬系統</title><link rel="stylesheet" href="styles.css"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head><body><main class="container"><header><div><h1>會務財產推估模擬系統</h1><p>純網頁Javascript版 v4.0</p></div><button id="run" class="primary">執行模擬</button></header><section class="card"><div class="grid"><label>原始資金總額<input id="capital" type="number" value="3000000" step="100000"></label><label>目標維持組數<input id="target_groups" type="number" value="13" min="1" max="25"></label><label>模擬總月數<input id="total_months" type="number" value="36" min="1" max="120"></label><label>安全氣墊月數<input id="safe_months" type="number" value="3" min="1" max="12"></label><label>抽籤模式<select id="sim_mode"><option value="normal">常態獨立機率抽籤</option><option value="worst">最差狀況：第21～25期強制得標</option></select></label><label class="toggle">自動遞補<input id="auto_replenish" type="checkbox"><span>維持目標組數</span></label></div><!-- 嚴格規定的黃色說明提示框 -->
-        <div class="notice">
-            💡 <strong>會組規則重要說明與防負債預備金用途：</strong><br>
-            • <strong>25個月必然結束機制</strong>：每個會組由「您(5會)＋其他4人(20會)」組成，各組獨立運作。因他人僅有20會，最差狀況下第20期他人全數得標後，第21～25期您享有100%得標權，單一會組絕不可能超過25個月！<br>
-            • <strong>防負債預備金用途</strong>：第13～15會期為現金流低谷，若剛好有組別退場，系統會強制檢驗：未投入現金 &ge; 75,000 + 現有活會 &times; 9,000 &times; 安全氣墊月數 。只有現金足以支應現有活會未來數月扣款時才准開新組，避免資金歸零落入負債。
-        </div><div class="stats"><div><small>起點現金</small><strong id="start_cash">$0</strong></div><div><small>最低現金</small><strong id="min_cash">$0</strong></div><div><small>現金流</small><strong id="debt">—</strong></div></div></section><section class="card"><div class="section-head"><h2>現有會組</h2><div><button id="add" class="secondary">＋ 新增</button><button id="export" class="secondary">💾 匯出現有清單(JSON)</button><label class="filebtn">📂 匯入會組清單(JSON)<input id="import" type="file" accept="application/json"></label></div></div><div class="table-wrap"><table><thead><tr><th>流水</th><th>會組編號</th><th>目前期數</th><th>已得標期數</th><th></th></tr></thead><tbody id="groups"></tbody></table></div></section><section class="card"><h2>會務資產與現金流動態模擬</h2><div class="chart-title">現金流水位與在會資產</div><div class="chart-box"><canvas id="chart"></canvas></div><div class="chart-title interest-title">每月 0.1% 活會配息收入</div><div class="chart-box interest-chart-box"><canvas id="interestChart"></canvas></div></section><section class="card"><h2>未來月度現金流</h2><div class="table-wrap"><table><thead><tr><th>月份</th><th>有效組數</th><th>活會</th><th>應繳</th><th>得標實領</th><th>配息</th><th>在會本金</th><th>未投入資金</th><th>備註</th></tr></thead><tbody id="records"></tbody></table></div></section><footer>純網頁前端計算；會組資料預設只存在瀏覽器 localStorage。</footer></main><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>會務財產推估模擬系統</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- 載入 Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <div>
+        <h1>會務財產推估模擬系統</h1>
+        <p>純網頁Javascript版 v4.0</p>
+      </div>
+      <button id="run" class="primary">執行模擬</button>
+    </header>
+
+    <section class="card">
+      <div class="grid">
+        <label>原始資金總額
+          <input id="capital" type="number" value="3000000" step="100000">
+        </label>
+        <label>目標維持組數
+          <input id="target_groups" type="number" value="13" min="1" max="25">
+        </label>
+        <label>模擬總月數
+          <input id="total_months" type="number" value="36" min="1" max="120">
+        </label>
+        <label>安全氣墊月數
+          <input id="safe_months" type="number" value="3" min="1" max="12">
+        </label>
+        <label>抽籤模式
+          <select id="sim_mode">
+            <option value="normal">常態獨立機率抽籤</option>
+            <option value="worst">最差狀況：第21～25期強制得標</option>
+          </select>
+        </label>
+        <label class="toggle">自動遞補
+          <input id="auto_replenish" type="checkbox">
+          <span>維持目標組數</span>
+        </label>
+      </div>
+
+      <!-- 黃色說明提示框 -->
+      <div class="notice">
+        💡 <strong>會組規則重要說明與防負債預備金用途：</strong><br>
+        • <strong>25個月必然結束機制</strong>：每個會組由「您(5會)＋其他4人(20會)」組成，各組獨立運作。因他人僅有20會，最差狀況下第20期他人全數得標後，第21～25期您享有100%得標權，單一會組絕不可能超過25個月！<br>
+        • <strong>防負債預備金用途</strong>：第13～15會期為現金流低谷，若剛好有組別退場，系統會強制檢驗：未投入現金 &ge; 75,000 + 現有活會 &times; 9,000 &times; 安全氣墊月數 。只有現金足以支應現有活會未來數月扣款時才准開新組，避免資金歸零落入負債。
+      </div>
+
+      <div class="stats">
+        <div>
+          <small>起點現金</small>
+          <strong id="start_cash">$0</strong>
+        </div>
+        <div>
+          <small>最低現金</small>
+          <strong id="min_cash">$0</strong>
+        </div>
+        <div>
+          <small>現金流</small>
+          <strong id="debt">—</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>現有會組</h2>
+        <div>
+          <button id="add" class="secondary">＋ 新增</button>
+          <button id="export" class="secondary">💾 匯出現有清單(JSON)</button>
+          <label class="filebtn">📂 匯入會組清單(JSON)
+            <input id="import" type="file" accept="application/json">
+          </label>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:60px; text-align:center;">流水</th>
+              <th style="text-align:center;">會組編號</th>
+              <th style="width:120px; text-align:center;">目前期數</th>
+              <th style="text-align:center;">已得標期數</th>
+              <th style="width:80px; text-align:center;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="groups"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>會務資產與現金流動態模擬</h2>
+      <div class="chart-title">現金流水位與在會資產</div>
+      <div class="chart-box">
+        <canvas id="chart"></canvas>
+      </div>
+      <div class="chart-title interest-title">每月 0.1% 活會配息收入</div>
+      <div class="chart-box interest-chart-box">
+        <canvas id="interestChart"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>未來月度現金流</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>月份</th>
+              <th>有效組數</th>
+              <th>活會</th>
+              <th>應繳</th>
+              <th>得標實領</th>
+              <th>配息</th>
+              <th>在會本金</th>
+              <th>未投入資金</th>
+              <th style="text-align:left;">備註</th>
+            </tr>
+          </thead>
+          <tbody id="records"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>純網頁前端計算；會組資料預設只存在瀏覽器 localStorage。</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
